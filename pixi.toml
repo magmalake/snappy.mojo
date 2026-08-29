@@ -1,0 +1,45 @@
+[workspace]
+authors = ["Marius S <39998+winding-lines@users.noreply.github.com>"]
+channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name = "snappy.mojo"
+version = "0.1.0"
+description = "A pure-Mojo Snappy compressor/decompressor — raw block format and the framing format, no FFI."
+preview = ["pixi-build"]
+platforms = ["osx-arm64", "linux-64"]
+
+[tasks]
+# Pure Mojo, no FFI — consumers just `-I ../snappy.mojo/src`.
+test = "mojo run -I src tests/test_snappy.mojo"
+bench = "mojo run -I src bench/bench_snappy.mojo"
+
+# ── pixi-build: consumable as a pixi source dependency ──────────────────────
+# Conda package name is snappy-mojo; the Mojo import stays `from snappy import …`.
+[package]
+name = "snappy-mojo"
+version = "0.1.0"
+
+[package.build]
+backend = { name = "pixi-build-mojo", version = "0.*" }
+
+[package.build.config.pkg]
+path = "src/snappy"
+name = "snappy"
+
+[package.host-dependencies]
+mojo-compiler = "==1.0.0"
+
+[package.build-dependencies]
+mojo-compiler = "==1.0.0"
+
+[package.run-dependencies]
+mojo-compiler = ">=1.0.0,<2"
+
+[feature.nightly.dependencies]
+modular = ">=26.6.0.dev2026082605,<27"
+
+[feature.stable.dependencies]
+mojo-compiler = "==1.0.0"
+
+[environments]
+default = ["nightly"]
+stable = ["stable"]
