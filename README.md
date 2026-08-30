@@ -1,5 +1,7 @@
 # snappy.mojo
 
+[![mojoshelf](https://mojoshelf.org/badge/snappy-mojo.svg)](https://mojoshelf.org/tins/snappy-mojo) [![mojo nightly](https://mojoshelf.org/badge/snappy-mojo/nightly.svg)](https://mojoshelf.org/tins/snappy-mojo)
+
 > Part of **magmalake** — data lake building blocks in Mojo.
 
 A pure-[Mojo](https://www.modular.com/mojo) implementation of
