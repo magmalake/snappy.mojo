@@ -2,7 +2,7 @@
 authors = ["Marius S <39998+winding-lines@users.noreply.github.com>"]
 channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
 name = "snappy.mojo"
-version = "0.1.0"
+version = "0.1.1"
 description = "A pure-Mojo Snappy compressor/decompressor — raw block format and the framing format, no FFI."
 preview = ["pixi-build"]
 platforms = ["osx-arm64", "linux-64"]
@@ -16,7 +16,7 @@ bench = "mojo run -I src bench/bench_snappy.mojo"
 # Conda package name is snappy-mojo; the Mojo import stays `from snappy import …`.
 [package]
 name = "snappy-mojo"
-version = "0.1.0"
+version = "0.1.1"
 
 [package.build]
 backend = { name = "pixi-build-mojo", version = "0.*" }

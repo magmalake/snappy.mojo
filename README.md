@@ -85,23 +85,26 @@ latest nightly (`pixi run test`, the default environment) — see CI.
 
 ## Performance
 
-64 MiB per input, this machine (Apple Silicon, `pixi run bench`, stable
-Mojo, no `-O3`); pure-Mojo, single-threaded, no SIMD in the hot loop yet:
+64 MiB per input, this machine (Apple Silicon M4, `pixi run bench`,
+single-threaded):
 
 | input | ratio | compress | decompress |
 |---|---|---|---|
-| compressible (repeating text) | ~21x | ~200–700 MB/s | ~250–550 MB/s |
-| random (incompressible) | ~1.0x | ~60–80 MB/s | ~250–550 MB/s |
+| compressible (repeating text) | ~21x | ~800 MB/s | ~3.0 GB/s |
+| random (incompressible) | ~1.0x | ~210 MB/s | ~20 GB/s |
 
-(Wide ranges reflect run-to-run noise on a shared dev machine, not
-algorithmic variance — re-run `pixi run bench` for your own numbers.)
-Decompression comfortably clears "hundreds of MB/s" even in pure Mojo;
-compression on random data is matcher-bound (a hash-table probe for
-every byte position, since nothing ever matches) — the reference C++
-implementation reports roughly 250–500 MB/s compress / 500–1000+ MB/s
-decompress on modern x86, so there's headroom left in the matcher
-(hash-chain lookback, lazy matching, SIMD length-matching) that this
-"fast strategy" implementation doesn't chase.
+The decompressor moves literals and non-overlapping copies 16 bytes at a
+time, writing past the end of the element it is copying into slack that the
+next element overwrites — so an incompressible input, which is one long
+literal, decodes at memory-copy speed. Only overlapping run-length copies
+and the last few bytes of the output take the byte-at-a-time path.
+
+Compression is still matcher-bound on random data (a hash-table probe at
+every byte position, since nothing ever matches). The reference C++
+implementation reports roughly 250–500 MB/s compress on modern x86, so the
+compressor is in the right range and the headroom left there (hash-chain
+lookback, lazy matching, SIMD length-matching) is what this "fast strategy"
+implementation doesn't chase.
 
 ## License
 

@@ -60,7 +60,9 @@ def uncompressed_length(data: Span[UInt8, _]) raises -> Int:
 # ── element emission (compressor side) ──────────────────────────────────
 
 
-def _emit_literal(mut out: List[UInt8], data: Span[UInt8, _], start: Int, end: Int):
+def _emit_literal(
+    mut out: List[UInt8], data: Span[UInt8, _], start: Int, end: Int
+):
     var length = end - start
     if length <= 0:
         return
@@ -145,7 +147,9 @@ def _matches4(data: Span[UInt8, _], a: Int, b: Int) -> Bool:
     )
 
 
-def _extend_match(data: Span[UInt8, _], a_in: Int, b_in: Int, limit: Int) -> Int:
+def _extend_match(
+    data: Span[UInt8, _], a_in: Int, b_in: Int, limit: Int
+) -> Int:
     var a = a_in
     var b = b_in
     while b < limit and data[a] == data[b]:
@@ -201,7 +205,15 @@ def decompress_into[
 ](data: Span[UInt8, _], dst: Span[UInt8, origin]) raises -> Int:
     """Decompress the raw Snappy block `data` into `dst`, which must be at
     least `uncompressed_length(data)` bytes. Returns the number of bytes
-    written. Raises on any structural corruption."""
+    written. Raises on any structural corruption.
+
+    Literals and non-overlapping copies move 16 bytes at a time. Both are
+    allowed to write past the end of the element they are copying, because
+    the write always lands inside the part of `dst` the block has already
+    been checked to fit in; the bytes written past the element are
+    overwritten by whatever comes next. Only the last few bytes of the output,
+    where that slack runs out, take the byte-at-a-time path.
+    """
     var parsed = _read_varint(data, 0)
     var want = parsed[0]
     var ipos = parsed[1]
@@ -210,8 +222,10 @@ def decompress_into[
 
     var n = len(data)
     var opos = 0
+    var src = data.unsafe_ptr()
+    var out = dst.unsafe_ptr()
     while ipos < n:
-        var tag = data[ipos]
+        var tag = src.unsafe_load(ipos)
         var typ = Int(tag & 0x3)
         if typ == 0:
             var top = Int(tag >> 2)
@@ -225,13 +239,27 @@ def decompress_into[
                     raise Error("snappy: truncated literal length")
                 var val: UInt64 = 0
                 for k in range(extra):
-                    val |= UInt64(data[ipos + 1 + k]) << UInt64(8 * k)
+                    val |= UInt64(src.unsafe_load(ipos + 1 + k)) << UInt64(
+                        8 * k
+                    )
                 lit_len = Int(val) + 1
                 ipos += 1 + extra
-            if ipos + lit_len > n or opos + lit_len > want:
+            if lit_len < 0 or ipos + lit_len > n or opos + lit_len > want:
                 raise Error("snappy: corrupt literal")
-            for k in range(lit_len):
-                dst[opos + k] = data[ipos + k]
+            if lit_len <= 16 and ipos + 16 <= n and opos + 16 <= want:
+                out.unsafe_store[width=16](
+                    opos, src.unsafe_load[width=16](ipos)
+                )
+            else:
+                var k = 0
+                while k + 16 <= lit_len:
+                    out.unsafe_store[width=16](
+                        opos + k, src.unsafe_load[width=16](ipos + k)
+                    )
+                    k += 16
+                while k < lit_len:
+                    out.unsafe_store(opos + k, src.unsafe_load(ipos + k))
+                    k += 1
             ipos += lit_len
             opos += lit_len
         else:
@@ -241,35 +269,51 @@ def decompress_into[
                 if ipos + 1 >= n:
                     raise Error("snappy: truncated copy (1-byte offset)")
                 length = Int((tag >> 2) & 0x7) + 4
-                offset = (Int(tag >> 5) << 8) | Int(data[ipos + 1])
+                offset = (Int(tag >> 5) << 8) | Int(src.unsafe_load(ipos + 1))
                 ipos += 2
             elif typ == 2:
                 if ipos + 2 >= n:
                     raise Error("snappy: truncated copy (2-byte offset)")
                 length = Int(tag >> 2) + 1
-                offset = Int(data[ipos + 1]) | (Int(data[ipos + 2]) << 8)
+                offset = Int(src.unsafe_load(ipos + 1)) | (
+                    Int(src.unsafe_load(ipos + 2)) << 8
+                )
                 ipos += 3
             else:
                 if ipos + 4 >= n:
                     raise Error("snappy: truncated copy (4-byte offset)")
                 length = Int(tag >> 2) + 1
                 offset = (
-                    Int(data[ipos + 1])
-                    | (Int(data[ipos + 2]) << 8)
-                    | (Int(data[ipos + 3]) << 16)
-                    | (Int(data[ipos + 4]) << 24)
+                    Int(src.unsafe_load(ipos + 1))
+                    | (Int(src.unsafe_load(ipos + 2)) << 8)
+                    | (Int(src.unsafe_load(ipos + 3)) << 16)
+                    | (Int(src.unsafe_load(ipos + 4)) << 24)
                 )
                 ipos += 5
             if offset <= 0 or offset > opos:
                 raise Error("snappy: invalid copy offset")
             if opos + length > want:
                 raise Error("snappy: corrupt copy length")
-            var src = opos - offset
-            # Byte-by-byte: offset can be smaller than length (overlapping
-            # run-length patterns), so a bulk copy would read unwritten
-            # output; this loop reads each byte only after it's written.
-            for k in range(length):
-                dst[opos + k] = dst[src + k]
+            var at = opos - offset
+            if offset >= 16 and length <= 16 and opos + 16 <= want:
+                # The whole copy in one 16-byte move: the source is at least
+                # 16 bytes behind, so it is entirely written already.
+                out.unsafe_store[width=16](opos, out.unsafe_load[width=16](at))
+            elif offset >= length:
+                var k = 0
+                while k + 16 <= length:
+                    out.unsafe_store[width=16](
+                        opos + k, out.unsafe_load[width=16](at + k)
+                    )
+                    k += 16
+                while k < length:
+                    out.unsafe_store(opos + k, out.unsafe_load(at + k))
+                    k += 1
+            else:
+                # An overlapping run-length pattern: each byte has to be read
+                # only after it has been written.
+                for k in range(length):
+                    out.unsafe_store(opos + k, out.unsafe_load(at + k))
             opos += length
 
     if opos != want:
