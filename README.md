@@ -87,7 +87,7 @@ no link flags).
 pixi run test    # spec edge cases, 64 KiB block boundaries, 1 MiB round
                   # trips, corrupt-input / bad-CRC handling, a byte-exact
                   # python-snappy vector
-pixi run bench    # MB/s over a 64 MiB buffer (compressible + random)
+pixi run -e bench bench   # throughput over a 64 MiB buffer
 ```
 
 Tests run on both a pinned stable Mojo (`pixi run -e stable test`) and the
@@ -95,13 +95,20 @@ latest nightly (`pixi run test`, the default environment) — see CI.
 
 ## Performance
 
-64 MiB per input, this machine (Apple Silicon M4, `pixi run bench`,
-single-threaded):
+64 MiB per input, this machine (Apple Silicon M4, single-threaded), measured
+with [bench.mojo](https://github.com/magmalake/bench.mojo) — mean of five
+timed repetitions, spread under 0.5% on each:
 
 | input | ratio | compress | decompress |
 |---|---|---|---|
-| compressible (repeating text) | ~21x | ~800 MB/s | ~3.0 GB/s |
-| random (incompressible) | ~1.0x | ~210 MB/s | ~20 GB/s |
+| compressible (repeating text) | ~21x | 0.81 GB/s | 3.14 GB/s |
+| random (incompressible) | ~1.0x | 0.22 GB/s | 28.5 GB/s |
+
+```sh
+pixi run -e bench bench                 # the table above
+pixi run -e bench bench -- --json       # every repetition, for tracking
+pixi run -e bench bench -- --only bench_compress_random
+```
 
 The decompressor moves literals and non-overlapping copies 16 bytes at a
 time, writing past the end of the element it is copying into slack that the

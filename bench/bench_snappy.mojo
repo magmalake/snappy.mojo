@@ -1,16 +1,25 @@
-"""Throughput bench: compress + decompress a 64 MiB buffer (compressible
-and random) and report MB/s. Run via `pixi run bench`."""
+"""Compress and decompress throughput over a 64 MiB buffer, both shapes of
+input, through the shared harness (magmalake/bench.mojo).
 
-from std.time import perf_counter_ns
+    pixi run -e bench bench
+    pixi run -e bench bench -- --json
+    pixi run -e bench bench -- --only bench_compress_compressible
 
-from snappy import compress, decompress, max_compressed_length
+Each body rebuilds its input, because the harness re-enters a benchmark once
+per phase and only what is inside `b.iter` is timed. For the decompress
+benchmarks that means compressing 64 MiB in setup every time -- wall-clock
+cost, never counted.
+"""
+
+from bench import Benchmark, BenchSuite, Metric, keep
+
+from snappy import compress, decompress
+
+comptime SIZE = 64 * 1024 * 1024
 
 
-def _repeat_bytes(pattern: String, n: Int) -> List[UInt8]:
-    var span = pattern.as_bytes()
-    var p = List[UInt8]()
-    for i in range(len(span)):
-        p.append(span[i])
+def _repeat_bytes(pattern: StaticString, n: Int) -> List[UInt8]:
+    var p = String(pattern).as_bytes()
     var plen = len(p)
     var out = List[UInt8](length=n, fill=UInt8(0))
     for i in range(n):
@@ -18,53 +27,98 @@ def _repeat_bytes(pattern: String, n: Int) -> List[UInt8]:
     return out^
 
 
-def _lcg_bytes(n: Int, seed_in: UInt64) -> List[UInt8]:
+def _compressible(n: Int) -> List[UInt8]:
+    return _repeat_bytes(
+        "The quick brown fox jumps over the lazy dog. ", n
+    )
+
+
+def _random(n: Int) -> List[UInt8]:
+    """LCG rather than `std.random`, so the input is identical run to run."""
     var out = List[UInt8](length=n, fill=UInt8(0))
-    var state = seed_in
+    var state = UInt64(0xC0FFEE)
     for i in range(n):
         state = state * 6364136223846793005 + 1442695040888963407
         out[i] = UInt8((state >> 24) & 0xFF)
     return out^
 
 
-def _mb_per_s(bytes_count: Int, ns: Int) -> Float64:
-    if ns <= 0:
-        return 0.0
-    var seconds = Float64(ns) / 1_000_000_000.0
-    var megabytes = Float64(bytes_count) / (1024.0 * 1024.0)
-    return megabytes / seconds
+def bench_compress_compressible(mut b: Benchmark) raises:
+    var data = _compressible(SIZE)
+    b.throughput(Metric.bytes(), SIZE)
+
+    @parameter
+    def call() raises:
+        var packed = compress(Span(data))
+        keep(packed)
+
+    b.iter[call]()
+    keep(data)
 
 
-def _bench_one(label: String, data: List[UInt8]) raises:
-    var n = len(data)
-
-    var t0 = perf_counter_ns()
+def bench_decompress_compressible(mut b: Benchmark) raises:
+    var data = _compressible(SIZE)
     var packed = compress(Span(data))
-    var t1 = perf_counter_ns()
-    var compress_mbs = _mb_per_s(n, Int(t1 - t0))
+    # Throughput is quoted against the *uncompressed* size, which is the
+    # number a caller cares about: bytes of payload recovered per second.
+    b.throughput(Metric.bytes(), SIZE)
 
-    var ratio = Float64(n) / Float64(len(packed))
+    @parameter
+    def call() raises:
+        var back = decompress(Span(packed))
+        keep(back)
 
-    var t2 = perf_counter_ns()
-    var back = decompress(Span(packed))
-    var t3 = perf_counter_ns()
-    var decompress_mbs = _mb_per_s(n, Int(t3 - t2))
+    b.iter[call]()
+    keep(data)
+    keep(packed)
 
-    if len(back) != n:
-        raise Error("bench: round trip length mismatch for " + label)
 
+def bench_compress_random(mut b: Benchmark) raises:
+    var data = _random(SIZE)
+    b.throughput(Metric.bytes(), SIZE)
+
+    @parameter
+    def call() raises:
+        var packed = compress(Span(data))
+        keep(packed)
+
+    b.iter[call]()
+    keep(data)
+
+
+def bench_decompress_random(mut b: Benchmark) raises:
+    var data = _random(SIZE)
+    var packed = compress(Span(data))
+    b.throughput(Metric.bytes(), SIZE)
+
+    @parameter
+    def call() raises:
+        var back = decompress(Span(packed))
+        keep(back)
+
+    b.iter[call]()
+    keep(data)
+    keep(packed)
+
+
+def _print_ratios() raises:
+    """Compression ratios, printed once. They are a property of the data, not
+    a timing, so they have no place in the benchmark table."""
+    var c = _compressible(SIZE)
+    var r = _random(SIZE)
+    var cp = compress(Span(c))
+    var rp = compress(Span(r))
     print(
-        label,
-        ": in=", n // (1024 * 1024), "MiB",
-        " packed=", len(packed) // 1024, "KiB",
-        " ratio=", ratio,
-        " compress=", compress_mbs, "MB/s",
-        " decompress=", decompress_mbs, "MB/s",
+        "input", SIZE // (1024 * 1024), "MiB |",
+        "compressible ->", len(cp) // 1024, "KiB",
+        "(", Float64(SIZE) / Float64(len(cp)), "x ) |",
+        "random ->", len(rp) // 1024, "KiB",
+        "(", Float64(SIZE) / Float64(len(rp)), "x )",
     )
+    if len(decompress(Span(cp))) != SIZE or len(decompress(Span(rp))) != SIZE:
+        raise Error("round trip length mismatch")
 
 
 def main() raises:
-    comptime SIZE = 64 * 1024 * 1024
-    print("snappy.mojo bench —", SIZE // (1024 * 1024), "MiB per input")
-    _bench_one("compressible", _repeat_bytes("The quick brown fox jumps over the lazy dog. ", SIZE))
-    _bench_one("random      ", _lcg_bytes(SIZE, 0xC0FFEE))
+    _print_ratios()
+    BenchSuite.run[__functions_in_module()]()
