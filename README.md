@@ -13,6 +13,14 @@ Parquet and Avro, so this is small enough to implement natively.
 - [format_description.txt](https://github.com/google/snappy/blob/main/format_description.txt) — raw block format
 - [framing_format.txt](https://github.com/google/snappy/blob/main/framing_format.txt) — framing format
 
+## Install
+
+```sh
+pixi shelf add snappy-mojo
+```
+
+That resolves the tin from [mojoshelf](https://mojoshelf.org) and adds it — along with the tins it depends on — as **pixi git source dependencies**. magmalake tins are not published to a conda channel, so `pixi add snappy-mojo` will not find them.
+
 ## Use
 
 ```mojo
