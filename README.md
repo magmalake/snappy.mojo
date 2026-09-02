@@ -110,6 +110,13 @@ pixi run -e bench bench -- --json       # every repetition, for tracking
 pixi run -e bench bench -- --only bench_compress_random
 ```
 
+Every push to `main` re-runs these on a GitHub runner and appends to a history
+published at
+[magmalake.github.io/snappy.mojo/benchmarks](https://magmalake.github.io/snappy.mojo/benchmarks/).
+Those numbers are slower and noisier than the table above, which was taken on
+an M4 — each history is keyed by machine, so the two stay separate series and
+are never averaged together.
+
 The decompressor moves literals and non-overlapping copies 16 bytes at a
 time, writing past the end of the element it is copying into slack that the
 next element overwrites — so an incompressible input, which is one long
