@@ -1,4 +1,4 @@
-"""snappy — a pure-Mojo Snappy compressor/decompressor.
+"""Snappy — a pure-Mojo Snappy compressor/decompressor.
 
 Implements both the **raw block format** (varint length + literal/copy
 elements) and the **framing format** (`sNaPpY` stream identifier, chunked,
