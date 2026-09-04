@@ -52,7 +52,7 @@ mojo-compiler = "==1.0.0"
 bench-mojo = { git = "https://github.com/magmalake/bench.mojo", rev = "4f4440fa6e61c9ca7c7573ca6aa2f8f1d606d88a" }
 
 [feature.bench.tasks]
-bench = "mojo run -I src -I $CONDA_PREFIX/lib/mojo bench/bench_snappy.mojo"
+bench = "mkdir -p build && mojo build -I src -I $CONDA_PREFIX/lib/mojo bench/bench_snappy.mojo -o build/bench-snappy && ./build/bench-snappy"
 
 [environments]
 default = ["nightly"]
