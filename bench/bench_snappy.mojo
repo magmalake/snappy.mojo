@@ -47,12 +47,11 @@ def bench_compress_compressible(mut b: Benchmark) raises:
     var data = _compressible(SIZE)
     b.throughput(Metric.bytes(), SIZE)
 
-    @parameter
-    def call() raises:
+    def call() raises {imm data}:
         var packed = compress(Span(data))
         keep(packed)
 
-    b.iter[call]()
+    b.iter(call)
     keep(data)
 
 
@@ -63,12 +62,11 @@ def bench_decompress_compressible(mut b: Benchmark) raises:
     # number a caller cares about: bytes of payload recovered per second.
     b.throughput(Metric.bytes(), SIZE)
 
-    @parameter
-    def call() raises:
+    def call() raises {imm packed}:
         var back = decompress(Span(packed))
         keep(back)
 
-    b.iter[call]()
+    b.iter(call)
     keep(data)
     keep(packed)
 
@@ -77,12 +75,11 @@ def bench_compress_random(mut b: Benchmark) raises:
     var data = _random(SIZE)
     b.throughput(Metric.bytes(), SIZE)
 
-    @parameter
-    def call() raises:
+    def call() raises {imm data}:
         var packed = compress(Span(data))
         keep(packed)
 
-    b.iter[call]()
+    b.iter(call)
     keep(data)
 
 
@@ -91,12 +88,11 @@ def bench_decompress_random(mut b: Benchmark) raises:
     var packed = compress(Span(data))
     b.throughput(Metric.bytes(), SIZE)
 
-    @parameter
-    def call() raises:
+    def call() raises {imm packed}:
         var back = decompress(Span(packed))
         keep(back)
 
-    b.iter[call]()
+    b.iter(call)
     keep(data)
     keep(packed)
 
