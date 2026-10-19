@@ -118,17 +118,17 @@ def test_mask_unmask_roundtrip() raises:
 
 def test_raw_empty() raises:
     var data = List[UInt8]()
-    _roundtrip_raw(data^, "empty input")
+    _roundtrip_raw(data, "empty input")
 
 
 def test_raw_one_byte() raises:
     var data = _bytes("x")
-    _roundtrip_raw(data^, "1-byte input")
+    _roundtrip_raw(data, "1-byte input")
 
 
 def test_raw_small_literal() raises:
     var data = _bytes("hello world")
-    _roundtrip_raw(data^, "small literal")
+    _roundtrip_raw(data, "small literal")
 
 
 def test_raw_long_literal_needs_extra_length_bytes() raises:
@@ -137,13 +137,13 @@ def test_raw_long_literal_needs_extra_length_bytes() raises:
     var data = List[UInt8](length=200, fill=UInt8(0))
     for i in range(len(data)):
         data[i] = UInt8(i)
-    _roundtrip_raw(data^, "200-byte all-distinct literal")
+    _roundtrip_raw(data, "200-byte all-distinct literal")
 
 
 def test_raw_run_length_overlap() raises:
     # offset=1, long run -> exercises the overlapping-copy path.
     var data = List[UInt8](length=500, fill=UInt8(65))  # 'A' * 500
-    _roundtrip_raw(data^, "long single-byte run (overlapping copy)")
+    _roundtrip_raw(data, "long single-byte run (overlapping copy)")
 
 
 def test_raw_64kib_boundary() raises:
@@ -154,7 +154,7 @@ def test_raw_64kib_boundary() raises:
 
 def test_raw_1mib_compressible() raises:
     var data = _compressible_bytes(1024 * 1024)
-    _roundtrip_raw(data^, "1 MiB compressible")
+    _roundtrip_raw(data, "1 MiB compressible")
 
 
 def test_raw_1mib_random() raises:
