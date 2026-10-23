@@ -111,41 +111,43 @@ def decompress_framed(data: Span[UInt8, _]) raises -> List[UInt8]:
             raise Error("snappy: truncated chunk data")
         var chunk = data[pos : pos + length]
 
-        if typ == CHUNK_STREAM_IDENTIFIER:
-            var magic = _stream_magic()
-            if length != len(magic):
-                raise Error("snappy: bad stream identifier length")
-            for i in range(length):
-                if chunk[i] != magic[i]:
-                    raise Error("snappy: bad stream identifier")
-            seen_stream_id = True
-        elif typ == CHUNK_COMPRESSED or typ == CHUNK_UNCOMPRESSED:
-            if not seen_stream_id:
-                raise Error("snappy: data chunk before stream identifier")
-            if length < 4:
-                raise Error("snappy: chunk too short for its checksum")
-            var stored = (
-                UInt32(chunk[0])
-                | (UInt32(chunk[1]) << 8)
-                | (UInt32(chunk[2]) << 16)
-                | (UInt32(chunk[3]) << 24)
-            )
-            var payload = chunk[4:length]
-            var block: List[UInt8]
-            if typ == CHUNK_COMPRESSED:
-                block = decompress(payload)
-            else:
-                block = List[UInt8]()
-                _append_span(block, payload)
-            var actual = crc32c(Span(block))
-            if unmask_crc32c(stored) != actual:
-                raise Error("snappy: crc32c mismatch")
-            _append_span(out, Span(block))
-        elif typ == CHUNK_PADDING:
-            pass  # padding chunk: no checksum, contents ignored
-        elif typ >= 0x02 and typ <= 0x7F:
-            raise Error("snappy: unsupported unskippable chunk type")
-        # else: 0x80-0xFD reserved *skippable* chunk — ignore its data.
+        match typ:
+            case == CHUNK_STREAM_IDENTIFIER:
+                var magic = _stream_magic()
+                if length != len(magic):
+                    raise Error("snappy: bad stream identifier length")
+                for i in range(length):
+                    if chunk[i] != magic[i]:
+                        raise Error("snappy: bad stream identifier")
+                seen_stream_id = True
+            case == CHUNK_COMPRESSED | == CHUNK_UNCOMPRESSED:
+                if not seen_stream_id:
+                    raise Error("snappy: data chunk before stream identifier")
+                if length < 4:
+                    raise Error("snappy: chunk too short for its checksum")
+                var stored = (
+                    UInt32(chunk[0])
+                    | (UInt32(chunk[1]) << 8)
+                    | (UInt32(chunk[2]) << 16)
+                    | (UInt32(chunk[3]) << 24)
+                )
+                var payload = chunk[4:length]
+                var block: List[UInt8]
+                if typ == CHUNK_COMPRESSED:
+                    block = decompress(payload)
+                else:
+                    block = List[UInt8]()
+                    _append_span(block, payload)
+                var actual = crc32c(Span(block))
+                if unmask_crc32c(stored) != actual:
+                    raise Error("snappy: crc32c mismatch")
+                _append_span(out, Span(block))
+            case == CHUNK_PADDING:
+                pass  # padding chunk: no checksum, contents ignored
+            case t if t >= 0x02 and t <= 0x7F:
+                raise Error("snappy: unsupported unskippable chunk type")
+            case _:
+                pass  # 0x80-0xFD reserved *skippable* chunk — ignore its data.
         pos += length
     return out^
 
@@ -215,41 +217,44 @@ struct FramedReader(Movable):
             var chunk = view[body_start : body_start + length]
             self._pos = body_start + length
 
-            if typ == CHUNK_STREAM_IDENTIFIER:
-                var magic = _stream_magic()
-                if length != len(magic):
-                    raise Error("snappy: bad stream identifier length")
-                for i in range(length):
-                    if chunk[i] != magic[i]:
-                        raise Error("snappy: bad stream identifier")
-                self._seen_stream_id = True
-                continue
-            elif typ == CHUNK_COMPRESSED or typ == CHUNK_UNCOMPRESSED:
-                if not self._seen_stream_id:
-                    raise Error("snappy: data chunk before stream identifier")
-                if length < 4:
-                    raise Error("snappy: chunk too short for its checksum")
-                var stored = (
-                    UInt32(chunk[0])
-                    | (UInt32(chunk[1]) << 8)
-                    | (UInt32(chunk[2]) << 16)
-                    | (UInt32(chunk[3]) << 24)
-                )
-                var payload = chunk[4:length]
-                var block: List[UInt8]
-                if typ == CHUNK_COMPRESSED:
-                    block = decompress(payload)
-                else:
-                    block = List[UInt8]()
-                    _append_span(block, payload)
-                var actual = crc32c(Span(block))
-                if unmask_crc32c(stored) != actual:
-                    raise Error("snappy: crc32c mismatch")
-                return Optional(block^)
-            elif typ == CHUNK_PADDING:
-                continue
-            elif typ >= 0x02 and typ <= 0x7F:
-                raise Error("snappy: unsupported unskippable chunk type")
-            else:
-                continue  # skippable reserved chunk
+            match typ:
+                case == CHUNK_STREAM_IDENTIFIER:
+                    var magic = _stream_magic()
+                    if length != len(magic):
+                        raise Error("snappy: bad stream identifier length")
+                    for i in range(length):
+                        if chunk[i] != magic[i]:
+                            raise Error("snappy: bad stream identifier")
+                    self._seen_stream_id = True
+                    continue
+                case == CHUNK_COMPRESSED | == CHUNK_UNCOMPRESSED:
+                    if not self._seen_stream_id:
+                        raise Error(
+                            "snappy: data chunk before stream identifier"
+                        )
+                    if length < 4:
+                        raise Error("snappy: chunk too short for its checksum")
+                    var stored = (
+                        UInt32(chunk[0])
+                        | (UInt32(chunk[1]) << 8)
+                        | (UInt32(chunk[2]) << 16)
+                        | (UInt32(chunk[3]) << 24)
+                    )
+                    var payload = chunk[4:length]
+                    var block: List[UInt8]
+                    if typ == CHUNK_COMPRESSED:
+                        block = decompress(payload)
+                    else:
+                        block = List[UInt8]()
+                        _append_span(block, payload)
+                    var actual = crc32c(Span(block))
+                    if unmask_crc32c(stored) != actual:
+                        raise Error("snappy: crc32c mismatch")
+                    return Optional(block^)
+                case == CHUNK_PADDING:
+                    continue
+                case t if t >= 0x02 and t <= 0x7F:
+                    raise Error("snappy: unsupported unskippable chunk type")
+                case _:
+                    continue  # skippable reserved chunk
         return Optional[List[UInt8]](None)
