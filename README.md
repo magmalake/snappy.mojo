@@ -90,8 +90,8 @@ pixi run test    # spec edge cases, 64 KiB block boundaries, 1 MiB round
 pixi run -e bench bench   # throughput over a 64 MiB buffer
 ```
 
-Tests run on both a pinned stable Mojo (`pixi run -e stable test`) and the
-latest nightly (`pixi run test`, the default environment) — see CI.
+Tests run on one pinned Mojo nightly, `1.3.0.dev2026111805` (`pixi run test`,
+the default environment) — see CI.
 
 ## Performance
 
