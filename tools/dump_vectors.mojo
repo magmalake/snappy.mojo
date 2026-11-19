@@ -3,7 +3,7 @@ tools/gen_python_vectors.py): compress a few payloads with our Mojo
 implementation and write both raw- and framing-format output to disk, so
 an independent decoder (python-snappy) can be pointed at them.
 
-    pixi run -e stable mojo run -I src tools/dump_vectors.mojo <out_dir>
+    pixi run mojo run -I src tools/dump_vectors.mojo <out_dir>
 """
 
 from snappy import compress, compress_framed
