@@ -2,7 +2,7 @@
 authors = ["Marius S <39998+winding-lines@users.noreply.github.com>"]
 channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
 name = "snappy.mojo"
-version = "0.1.4"
+version = "0.2.0"
 description = "A pure-Mojo Snappy compressor/decompressor — raw block format and the framing format, no FFI."
 preview = ["pixi-build"]
 platforms = ["osx-arm64", "linux-64"]
@@ -19,7 +19,7 @@ lint = { cmd = "mojolint --lsp -I src src tests" }
 # Conda package name is snappy-mojo; the Mojo import stays `from snappy import …`.
 [package]
 name = "snappy-mojo"
-version = "0.1.4"
+version = "0.2.0"
 
 [package.build]
 backend = { name = "pixi-build-mojo", version = "0.*" }
@@ -61,4 +61,4 @@ mojo-compiler = "==1.3.0.dev2026111805"
 # Added by `pixi shelf add lint-mojo`: the linter comes from GitHub as a pixi
 # source dependency pinned at the revision mojoshelf published, and builds
 # the `mojolint` executable into every environment next to mojo-lsp-server.
-lint-mojo = { git = "https://github.com/magmalake/lint.mojo.git", rev = "26bf6963124769c4a42251e911f0fc41e537f0d0" }
+lint-mojo = { git = "https://github.com/magmalake/lint.mojo.git", rev = "81cac02a78a8cfd48a9807dda68f8d7d2f013791" }
