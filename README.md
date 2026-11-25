@@ -1,6 +1,6 @@
 # snappy.mojo
 
-[![mojoshelf](https://mojoshelf.org/badge/snappy-mojo.svg)](https://mojoshelf.org/tins/snappy-mojo) [![mojo nightly](https://mojoshelf.org/badge/snappy-mojo/nightly.svg)](https://mojoshelf.org/tins/snappy-mojo)
+[![mojoshelf](https://mojoshelf.org/badge/snappy-mojo.svg)](https://mojoshelf.org/tins/snappy-mojo) [![mojo nightly](https://mojoshelf.org/badge/snappy-mojo/nightly.svg)](https://mojoshelf.org/tins/snappy-mojo) [![Used by](https://mojourney.dev/badge/magmalake/snappy.mojo/used-by.svg)](https://mojourney.dev/repos/magmalake/snappy.mojo#used-by) [![Mojo version](https://mojourney.dev/badge/magmalake/snappy.mojo/mojo.svg)](https://mojourney.dev/repos/magmalake/snappy.mojo)
 
 > Part of [**magmalake**](https://magmalake.org) — data lake building blocks in Mojo.
 
